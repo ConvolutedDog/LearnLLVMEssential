@@ -78,6 +78,10 @@ llvm::Value *getInsertElement(llvm::IRBuilder<> &Builder, llvm::Value *Vec,
   return Builder.CreateInsertElement(Vec, Val, Index, "ins-ele");
 }
 
+llvm::Value *getExtractElement(llvm::IRBuilder<> &Builder, llvm::Value *Vec, llvm::Value *Index) {
+  return Builder.CreateExtractElement(Vec, Index, "ext-ele");
+}
+
 #include "llvm/IR/Verifier.h" // llvm::verifyFunction
 int test1(int argc, char **argv) {
   static llvm::IRBuilder<> Builder1(Context1);
@@ -116,11 +120,23 @@ int test2(int argc, char **argv) {
   Builder2.SetInsertPoint(entry);
 
   llvm::Value *Vec = fooFunc->arg_begin();
-  for (unsigned int i=0; i<vectorSize; i++) {
-    llvm::Value *newVec = getInsertElement(Builder2, Vec, Builder2.getInt32((i + 1) * 10), Builder2.getInt32(i));
+  llvm::Value *newVec = nullptr;
+  for (unsigned int i=0; i<vectorSize; ++i) {
+    newVec = getInsertElement(Builder2, Vec, Builder2.getInt32((i + 1) * 10), Builder2.getInt32(i));
   }
 
-  Builder2.CreateRet(Builder2.getInt32(0));
+  llvm::SmallVector<llvm::Value*, vectorSize> V;
+  V.resize(vectorSize);
+
+  for (unsigned int i=0; i<V.size(); ++i) {
+    V[i] = getExtractElement(Builder2, Vec, Builder2.getInt32(i));
+  }
+
+  llvm::Value *add1 = createArithMul(Builder2, V[0], V[V.size()-1]);
+  llvm::Value *add2 = createArithMul(Builder2, add1, V[V.size()-1]);
+
+  // Builder2.CreateRet(Builder2.getInt32(0));
+  Builder2.CreateRet(add2);
 
   llvm::verifyFunction(*fooFunc);
   ModuleOb2->dump();
