@@ -27,3 +27,25 @@ define i32 @callercaller()
   %X = call i32 @caller(i32* %B)
   ret i32 %X
 }
+
+; RUN: opt -passes="instcombine" -S ../test.ll
+;      opt -S ../test.ll
+; And see the difference in the optimized code.
+; It has removed one redundant add instruction and hence combined the two
+; `add` instructions to one.
+define i32 @instcombine(i32 %X)
+{
+  %Y = add i32 %X, 1 ; |
+  %Z = add i32 %Y, 1 ; | --> %Z = add i32 %X, 2
+  ret i32 %Z
+}
+
+define i32 @testfunc(i32 %x, i32 %y, i32 %z)
+{
+  %xor1 = xor i32 %y, %z    ; |
+  %or = or i32 %x, %xor1    ; |
+  %xor2 = xor i32 %x, %z    ; |
+  %xor3 = xor i32 %xor2, %y ; |     %xor1 = xor i32 %y, %z
+  %res = xor i32 %or, %xor3 ; | --> %1 = and i32 %xor1, %x
+  ret i32 %res
+}
